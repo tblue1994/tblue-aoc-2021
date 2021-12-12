@@ -1,0 +1,23 @@
+package main
+
+import (
+	"tblue-aoc-2021/utils/files"
+)
+
+func main() {
+	input := files.ReadFile(12, 2021, "\n", false)
+	println(solvePart1(input))
+	println(solvePart2(input))
+}
+
+func solvePart1(input []string) int {
+	result := 0
+
+	return result
+}
+
+func solvePart2(input []string) int {
+	result := 0
+
+	return result
+}
