@@ -14,9 +14,6 @@ func main() {
 func solvePart1(input []string) int {
 	startString, chainMap := parseInput(input)
 	endString := processStringForTimes(startString, chainMap, 10)
-	for k, v := range endString {
-		println(k, v)
-	}
 	return processEndString(endString)
 }
 
