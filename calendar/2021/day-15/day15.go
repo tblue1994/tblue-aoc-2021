@@ -1,15 +1,66 @@
 package main
 
 import (
+	"container/heap"
 	"strconv"
 	"strings"
 	"tblue-aoc-2021/utils/files"
+	"time"
 )
+
+// An Item is something we manage in a priority queue.
+type Item struct {
+	value    string // The value of the item; arbitrary.
+	priority int    // The priority of the item in the queue.
+	// The index is needed by update and is maintained by the heap.Interface methods.
+	index int // The index of the item in the heap.
+}
+
+// A PriorityQueue implements heap.Interface and holds Items.
+type PriorityQueue []*Item
+
+func (pq PriorityQueue) Len() int { return len(pq) }
+
+func (pq PriorityQueue) Less(i, j int) bool {
+	return pq[i].priority < pq[j].priority
+}
+
+func (pq PriorityQueue) Swap(i, j int) {
+	pq[i], pq[j] = pq[j], pq[i]
+	pq[i].index = i
+	pq[j].index = j
+}
+
+func (pq *PriorityQueue) Push(x interface{}) {
+	n := len(*pq)
+	item := x.(*Item)
+	item.index = n
+	*pq = append(*pq, item)
+}
+
+func (pq *PriorityQueue) Pop() interface{} {
+	old := *pq
+	n := len(old)
+	item := old[n-1]
+	old[n-1] = nil  // avoid memory leak
+	item.index = -1 // for safety
+	*pq = old[0 : n-1]
+	return item
+}
+
+// update modifies the priority and value of an Item in the queue.
+func (pq *PriorityQueue) update(item *Item, value string, priority int) {
+	item.value = value
+	item.priority = priority
+	heap.Fix(pq, item.index)
+}
 
 func main() {
 	input := files.ReadFile(15, 2021, "\n", false)
 	println(solvePart1(input))
+	println(time.Now().String())
 	println(solvePart2(input))
+	println(time.Now().String())
 }
 
 func solvePart1(input []string) int {
@@ -22,7 +73,7 @@ func solvePart2(input []string) int {
 	maze := parseInput(input)
 	biggerMaze := buildBiggerMaze(maze)
 
-	return findShortestPath(biggerMaze)
+	return findShortestPathPQ(biggerMaze)
 }
 
 func parseInput(input []string) [][]int {
@@ -82,6 +133,66 @@ func findShortestPath(maze [][]int) int {
 	}
 
 	return d
+}
+
+func findShortestPathPQ(maze [][]int) int {
+	seen := map[int]map[int]bool{}
+	pq := PriorityQueue{}
+	startItem := &Item{
+		value:    "0,0",
+		priority: 0,
+	}
+	pq.Push(startItem)
+	heap.Init(&pq)
+
+	for pq.Len() > 0 {
+		item := heap.Pop(&pq).(*Item)
+		pair := strings.Split(item.value, ",")
+		cx, _ := strconv.Atoi(pair[0])
+		cy, _ := strconv.Atoi(pair[1])
+		if cx == len(maze[0])-1 && cy == len(maze)-1 {
+			return item.priority
+		}
+		if seen[cx] == nil {
+			seen[cx] = map[int]bool{}
+		}
+		seen[cx][cy] = true
+
+		neighbors := [][]int{
+			{cx - 1, cy},
+			{cx + 1, cy},
+			{cx, cy + 1},
+			{cx, cy - 1},
+		}
+		for _, pair := range neighbors {
+			nX, nY := pair[0], pair[1]
+			if _, found := seen[nX][nY]; found {
+				continue
+			}
+			if nX >= 0 && nX < len(maze[0]) && nY >= 0 && nY < len(maze) {
+				w := maze[nY][nX]
+				key := strconv.Itoa(nX) + "," + strconv.Itoa(nY)
+				found := false
+				for i := range pq {
+					if pq[i].value == key {
+						foundItem := pq[i]
+						if foundItem.priority > item.priority+w {
+							pq.update(foundItem, foundItem.value, item.priority+w)
+						}
+						break
+					}
+				}
+				if !found {
+					nItem := &Item{
+						value:    key,
+						priority: item.priority + w,
+					}
+					heap.Push(&pq, nItem)
+				}
+			}
+		}
+	}
+	return 0
 }
 
 func buildBiggerMaze(maze [][]int) [][]int {
